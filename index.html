@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YSstream — Nonton Film (Demo)</title>
+  <meta name="description" content="Demo katalog film dengan pencarian, filter, trailer, dan watchlist (tanpa konten bajakan)." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0e13; --bg-soft:#121722; --card:#151b29; --muted:#9aa4b2; --text:#e7ecf3; --primary:#5eead4; --accent:#7c3aed; --danger:#ef4444;
+      --ring:0 0 0 2px rgba(94,234,212,.35),0 0 0 6px rgba(124,58,237,.15);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans",sans-serif;background:radial-gradient(1200px 600px at 10% -10%,rgba(124,58,237,.15),transparent 60%),radial-gradient(1000px 500px at 90% 10%,rgba(94,234,212,.12),transparent 60%),var(--bg);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .container{max-width:1200px;margin:0 auto;padding:16px}
+
+    /* Header */
+    header{position:sticky;top:0;z-index:50;background:rgba(11,14,19,.75);backdrop-filter:blur(10px);border-bottom:1px solid #1f2a3a}
+    .nav{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:800;letter-spacing:.4px}
+    .logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#22d3ee);box-shadow:0 6px 16px rgba(124,58,237,.35)}
+    .nav-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .search{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid #1f2a3a;border-radius:12px;padding:10px 12px;min-width:260px}
+    .search:focus-within{box-shadow:var(--ring)}
+    .search input{flex:1;background:transparent;border:none;outline:none;color:var(--text)}
+    .select,.btn{background:var(--card);border:1px solid #1f2a3a;color:var(--text);border-radius:12px;padding:10px 12px}
+    .select{appearance:none}
+    .btn{cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,rgba(124,58,237,.9),rgba(34,211,238,.9));border:none}
+
+    /* Hero */
+    .hero{position:relative;overflow:hidden;border-bottom:1px solid #1f2a3a}
+    .hero-inner{display:grid;grid-template-columns:1.2fr .8fr;gap:24px;align-items:center;padding:28px 16px}
+    .hero-bg{position:absolute;inset:-40px 0 0 0;background:url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963f?q=80&w=1600&auto=format&fit=crop') center/cover no-repeat;opacity:.18;filter:grayscale(40%)}
+    .pill{display:inline-flex;gap:8px;align-items:center;background:rgba(94,234,212,.08);border:1px solid rgba(94,234,212,.25);color:#b8fff2;padding:6px 10px;border-radius:999px;font-size:12px}
+    .hero h1{margin:.35em 0;font-size:clamp(28px,4.5vw,48px)}
+    .hero p{color:var(--muted);max-width:60ch}
+    .hero-actions{display:flex;gap:10px;margin-top:14px}
+    .poster{width:100%;max-width:360px;border-radius:16px;border:1px solid #243144;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+
+    /* Chips & toolbar */
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
+    .chip{padding:8px 12px;border-radius:999px;border:1px solid #223047;background:var(--bg-soft);cursor:pointer;font-size:14px}
+    .chip.active{background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(34,211,238,.18));border-color:#36506f}
+
+    /* Grid */
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    @media (min-width:700px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (min-width:1000px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+    .card{position:relative;background:linear-gradient(180deg,rgba(26,34,51,.95),#0d121c 140%);border:1px solid #1f2a3a;border-radius:16px;overflow:hidden}
+    .thumb{aspect-ratio:2/3;width:100%;object-fit:cover;display:block}
+    .card-body{padding:10px}
+    .title{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+    .meta{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;margin-top:6px}
+    .rating{display:inline-flex;gap:6px;align-items:center}
+    .badge{position:absolute;top:8px;left:8px;background:rgba(124,58,237,.9);color:white;padding:4px 8px;border-radius:999px;font-size:12px}
+    .actions{display:flex;gap:8px;margin-top:10px}
+    .small{font-size:12px;padding:8px 10px;border-radius:10px;border:1px solid #223047;background:#121827;cursor:pointer}
+
+    /* Drawer (Watchlist) */
+    .drawer{position:fixed;right:0;top:0;height:100vh;width:min(440px,92vw);transform:translateX(100%);transition:transform .35s ease;background:rgba(11,14,19,.98);backdrop-filter:blur(10px);z-index:80;border-left:1px solid #1f2a3a;display:flex;flex-direction:column}
+    .drawer.open{transform:translateX(0)}
+    .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #1f2a3a}
+    .drawer-content{padding:16px;overflow:auto;display:grid;gap:12px}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:90}
+    .modal.open{display:flex}
+    .modal-card{width:min(920px,94vw);border-radius:16px;overflow:hidden;background:#0b0e13;border:1px solid #1f2a3a}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #1f2a3a}
+    .modal-body{position:relative;padding-top:56.25%}
+    .modal-body iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+    /* Footer */
+    footer{color:var(--muted);text-align:center;padding:28px 16px;border-top:1px solid #1f2a3a;margin-top:28px}
+
+    /* A11y helpers */
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  </style>
+</head>
+<body>
+  <!-- Catatan: Demo ini tidak menyertakan streaming film berhak cipta. Hanya katalog & trailer resmi (YouTube). -->
+  <header>
+    <nav class="nav container" aria-label="Navigasi utama">
+      <div class="brand" aria-label="Cinestream">
+        <div class="logo" aria-hidden="true"></div>
+        <span>YSstream</span>
+      </div>
+      <div class="nav-tools" role="search">
+        <label class="sr-only" for="q">Cari film</label>
+        <div class="search" title="Cari film">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="#7aa2c7" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="6" stroke="#7aa2c7" stroke-width="2" fill="none"/></svg>
+          <input id="q" placeholder="Cari judul..." autocomplete="off" />
+        </div>
+        <select id="genre" class="select" aria-label="Filter genre">
+          <option value="">Semua Genre</option>
+        </select>
+        <select id="year" class="select" aria-label="Filter tahun">
+          <option value="">Semua Tahun</option>
+        </select>
+        <select id="rating" class="select" aria-label="Filter rating">
+          <option value="">Semua Rating</option>
+          <option value="9">≥ 9</option>
+          <option value="8">≥ 8</option>
+          <option value="7">≥ 7</option>
+          <option value="6">≥ 6</option>
+        </select>
+        <button id="btnWatchlist" class="btn" aria-haspopup="dialog" aria-controls="watchlistDrawer">Watchlist</button>
+      </div>
+    </nav>
+  </header>
+
+  <section class="hero" aria-label="Sorotan">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-inner container">
+      <div>
+        <span class="pill">🔥 Rilis & Populer</span>
+        <h1>Nikmati Katalog Film & Trailer Resmi</h1>
+        <p>Telusuri koleksi film berdasarkan genre, tahun, dan rating. Simpan ke watchlist dan tonton <em>trailer resmi</em> — website ini tidak meng-host konten berhak cipta.</p>
+        <div class="hero-actions">
+          <a href="#katalog" class="btn primary">Jelajahi Sekarang</a>
+          <button class="btn" id="btnRandom">Acak Rekomendasi</button>
+        </div>
+        <div class="toolbar" id="chips"></div>
+      </div>
+      <img class="poster" id="heroPoster" alt="Poster film unggulan" src="https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=640&auto=format&fit=crop" />
+    </div>
+  </section>
+
+  <main class="container" id="katalog" aria-live="polite">
+    <h2 style="margin:18px 0 8px">Katalog</h2>
+    <div id="count" style="color:var(--muted);font-size:14px;margin-bottom:10px"></div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <!-- Drawer Watchlist -->
+  <aside class="drawer" id="watchlistDrawer" role="dialog" aria-label="Watchlist" aria-modal="true">
+    <div class="drawer-header">
+      <strong>Watchlist</strong>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn small" id="btnExport">Ekspor .json</button>
+        <button class="btn small" id="btnClear">Bersihkan</button>
+        <button class="btn small" id="btnCloseDrawer" aria-label="Tutup">Tutup</button>
+      </div>
+    </div>
+    <div class="drawer-content" id="watchlistContent"></div>
+  </aside>
+
+  <!-- Modal Trailer -->
+  <div class="modal" id="trailerModal" role="dialog" aria-modal="true" aria-label="Putar trailer">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="trailerTitle">Trailer</strong>
+        <button class="btn small" id="btnCloseModal">Tutup</button>
+      </div>
+      <div class="modal-body">
+        <iframe id="ytFrame" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen title="Pemutar trailer"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Dibuat untuk keperluan demo & edukasi. © <span id="yearNow"></span> Cinestream.
+  </footer>
+
+  <script>
+  // ========================== DATA DEMO ===========================
+  // Contoh data statis. Di produksi, ganti dengan API legal (TMDB, dll.)
+  const MOVIES = [
+    {id:1,title:"Inception",year:2010,genres:["Aksi","Fiksi Ilmiah"],rating:8.8,poster:"https://image.tmdb.org/t/p/w500/qmDpIHrmpJINaRKAfWQfftjCdyi.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/s3TBrRGB1iav7gFOCNx3H31MoES.jpg",trailer:"8hP9D6kZseM",summary:"Seorang pencuri memasuki mimpi untuk mencuri rahasia dan menanamkan ide."},
+    {id:2,title:"Interstellar",year:2014,genres:["Petualangan","Fiksi Ilmiah"],rating:8.6,poster:"https://image.tmdb.org/t/p/w500/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg",trailer:"zSWdZVtXT7E",summary:"Sebuah tim menjelajahi lubang cacing untuk menyelamatkan umat manusia."},
+    {id:3,title:"Parasite",year:2019,genres:["Drama","Thriller"],rating:8.6,poster:"https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/ApiBzeaa95TNYliSbQ8pJv4Fje7.jpg",trailer:"SEUXfv87Wpk",summary:"Keluarga miskin menyusup ke rumah keluarga kaya dengan konsekuensi tak terduga."},
+    {id:4,title:"Spider-Man: Into the Spider-Verse",year:2018,genres:["Animasi","Aksi"],rating:8.4,poster:"https://image.tmdb.org/t/p/w500/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/7d6EY00g1c39SGZOoCJ5Py9nNth.jpg",trailer:"g4Hbz2jLxvQ",summary:"Miles Morales menjadi Spider-Man dan bertemu Spider-People dari dimensi lain."},
+    {id:5,title:"The Dark Knight",year:2008,genres:["Aksi","Kriminal"],rating:9.0,poster:"https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/hqkIcbrOHL86UncnHIsHVcVmzue.jpg",trailer:"EXeTwQWrcwY",summary:"Batman menghadapi Joker yang menimbulkan kekacauan di Gotham."},
+    {id:6,title:"Coco",year:2017,genres:["Animasi","Keluarga"],rating:8.4,poster:"https://image.tmdb.org/t/p/w500/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/askg3SMvhqEl4OL52YuvdtY40Yb.jpg",trailer:"Ga6RYejo6Hk",summary:"Seorang anak memasuki Negeri Orang Mati untuk menemukan warisan musiknya."},
+    {id:7,title:"Your Name.",year:2016,genres:["Animasi","Romansa"],rating:8.5,poster:"https://image.tmdb.org/t/p/w500/q719jXXEzOoYaps6babgKnONONX.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/dIWwZW7dJJtqC6CgWzYkNVKIUm8.jpg",trailer:"xU47nhruN-Q",summary:"Dua remaja bertukar tubuh dan terhubung melintasi waktu."},
+    {id:8,title:"Dune",year:2021,genres:["Petualangan","Fiksi Ilmiah"],rating:8.0,poster:"https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",trailer:"n9xhJrPXop4",summary:"Paul Atreides menuju Arrakis untuk takdir keluarga dan alam semesta."},
+    {id:9,title:"La La Land",year:2016,genres:["Drama","Musikal"],rating:8.0,poster:"https://image.tmdb.org/t/p/w500/ylXCdC106IKiarftHkcacasaAcb.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/70kQvV8S9VXpL2cG1V9x6QGmQ0.jpg",trailer:"0pdqf4P9MB8",summary:"Kisah cinta musisi dan aktris yang mengejar mimpi di LA."},
+    {id:10,title:"Everything Everywhere All at Once",year:2022,genres:["Komedi","Fiksi Ilmiah"],rating:8.1,poster:"https://image.tmdb.org/t/p/w500/w3LxiVYdWWRvEVdn5RYq6jIqkb1.jpg",backdrop:"https://image.tmdb.org/t/p/w1280/26DdlH1PHxG2cQ3Q8b6jVWeNsey.jpg",trailer:"wxN1T1uxQ2g",summary:"Ibu pemilik laundry menghadapi multiverse untuk menyelamatkan keluarganya."},
+    { 
+  id: 11,
+  title: "Oppenheimer",
+  year: 2023,
+  genres: ["Drama", "Sejarah"],
+  rating: 8.5,
+  poster: "https://image.tmdb.org/t/p/w500/bafh7sO4T9jvP6KyHRcY6z3n0Pj.jpg",
+  backdrop: "https://image.tmdb.org/t/p/w1280/8YFL5QQVPy3AgrEQxNYVSgiPEbe.jpg",
+  trailer: "uYPbbksJxIg",
+  summary: "Kisah J. Robert Oppenheimer, fisikawan di balik proyek bom atom."
+},
+{ 
+  id: 12,
+  title: "Avengers: Endgame",
+  year: 2019,
+  genres: ["Aksi", "Fiksi Ilmiah"],
+  rating: 8.4,
+  poster: "https://image.tmdb.org/t/p/w500/ulzhLuWrPK07P1YkdWQLZnQh1JL.jpg",
+  backdrop: "https://image.tmdb.org/t/p/w1280/or06FN3Dka5tukK1e9sl16pB3iy.jpg",
+  trailer: "TcMBFSGVi1c",
+  summary: "Pertarungan terakhir Avengers melawan Thanos untuk menyelamatkan alam semesta."
+},
+{ 
+  id: 13,
+  title: "Frozen II",
+  year: 2019,
+  genres: ["Animasi", "Keluarga"],
+  rating: 7.2,
+  poster: "https://image.tmdb.org/t/p/w500/pjeMs3yqRmFL3giJy4PMXWZTTPa.jpg",
+  backdrop: "https://image.tmdb.org/t/p/w1280/xJWPZIYOEFIjZpBL7SVBGnzRYXp.jpg",
+  trailer: "Zi4LMpSDccc",
+  summary: "Elsa, Anna, Kristoff, Olaf, dan Sven pergi ke hutan ajaib untuk menemukan asal kekuatan Elsa."},
+{ id:14, title:"The Matrix", year:1999, genres:["Aksi","Fiksi Ilmiah"], rating:8.7,
+  poster:"https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/7u3pxc0K1wx32IleAkLv78MKgrw.jpg",
+  trailer:"m8e-FF8MsqU",
+  summary:"Seorang hacker menemukan kenyataan bahwa dunia hanyalah simulasi buatan mesin." },
+
+{ id:15, title:"Avatar", year:2009, genres:["Petualangan","Fantasi"], rating:7.8,
+  poster:"https://image.tmdb.org/t/p/w500/jRXYjXNq0Cs2TcJjLkki24MLp7u.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/tnAuB8q5vv7Ax9UAEje5Xi4BXik.jpg",
+  trailer:"5PSNL1qE6VY",
+  summary:"Seorang marinir cacat dikirim ke Pandora dan menemukan dunia baru yang memikat." },
+
+{ id:16, title:"Titanic", year:1997, genres:["Drama","Romansa"], rating:7.9,
+  poster:"https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/sdEOH0992YZ0QSxgXNIGLq1ToUi.jpg",
+  trailer:"2e-eXJ6HgkQ",
+  summary:"Kisah cinta Jack dan Rose yang terjalin di atas kapal Titanic yang legendaris." },
+
+{ id:17, title:"The Lion King", year:1994, genres:["Animasi","Keluarga"], rating:8.5,
+  poster:"https://image.tmdb.org/t/p/w500/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/2va32apQP97gvUxaMnL5wYt4CRB.jpg",
+  trailer:"4sj1MT05lAA",
+  summary:"Simba, seekor singa muda, harus mengambil alih takhta setelah tragedi keluarga." },
+
+{ id:18, title:"The Godfather", year:1972, genres:["Kriminal","Drama"], rating:9.2,
+  poster:"https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/rSPw7tgCH9c6NqICZef4kZjFOQ5.jpg",
+  trailer:"sY1S34973zA",
+  summary:"Kisah keluarga mafia Corleone yang penuh intrik, kekuasaan, dan pengkhianatan." },
+
+{ id:19, title:"The Shawshank Redemption", year:1994, genres:["Drama"], rating:9.3,
+  poster:"https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/xBKGJQsAIeweesB79KC89FpBrVr.jpg",
+  trailer:"PLl99DlL6b4",
+  summary:"Seorang bankir dipenjara secara salah dan menemukan kebebasan melalui persahabatan." },
+
+{ id:20, title:"Joker", year:2019, genres:["Drama","Thriller"], rating:8.4,
+  poster:"https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/n6bUvigpRFqSwmPp1m2YADdbRBc.jpg",
+  trailer:"zAGVQLHvwOY",
+  summary:"Asal mula Arthur Fleck yang berubah menjadi Joker, ikon kriminal Gotham." },
+
+{ id:21, title:"Black Panther", year:2018, genres:["Aksi","Fiksi Ilmiah"], rating:7.3,
+  poster:"https://image.tmdb.org/t/p/w500/uxzzxijgPIY7slzFvMotPv8wjKA.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/6ELJEzQJ3Y45HczvreC3dg0GV5R.jpg",
+  trailer:"xjDjIWPwcPU",
+  summary:"T’Challa kembali ke Wakanda untuk menjadi raja sekaligus melindungi negaranya." },
+
+{ id:22, title:"Guardians of the Galaxy", year:2014, genres:["Aksi","Komedi"], rating:8.0,
+  poster:"https://image.tmdb.org/t/p/w500/r7vmZjiyZw9rpJMQJdXpjgiCOk9.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/bHarw8xrmQeqf3t8HpuMY7zoK4x.jpg",
+  trailer:"d96cjJhvlMA",
+  summary:"Sekelompok pahlawan luar angkasa eksentrik bergabung untuk menyelamatkan galaksi." },
+
+{ id:23, title:"Doctor Strange", year:2016, genres:["Aksi","Fantasi"], rating:7.5,
+  poster:"https://image.tmdb.org/t/p/w500/uGBVj3bEbCoZbDjjl9wTxcygko1.jpg",
+  backdrop:"https://image.tmdb.org/t/p/w1280/xf8PbyQcR5ucXErmZNzdKR0s8ya.jpg",
+  trailer:"Lt-U_t2pUHI",
+  summary:"Seorang dokter bedah menemukan dunia sihir dan menjadi pelindung dimensi mistik." },
+
+
+  ];
+
+  // ========================== UTIL & STATE ===========================
+  const $ = (sel,ctx=document)=>ctx.querySelector(sel);
+  const $$ = (sel,ctx=document)=>[...ctx.querySelectorAll(sel)];
+  const state = { q:"", genre:"", year:"", rating:"", chip:"" };
+  const years = [...new Set(MOVIES.map(m=>m.year))].sort((a,b)=>b-a);
+  const genres = [...new Set(MOVIES.flatMap(m=>m.genres))].sort();
+  const watchlistKey = 'cinestream.watchlist.v1';
+
+  const watch = {
+    all(){ try{ return JSON.parse(localStorage.getItem(watchlistKey)||'[]'); }catch{ return [] } },
+    has(id){ return this.all().some(x=>x.id===id) },
+    add(movie){ if(!this.has(movie.id)){ const list=[movie,...this.all()]; localStorage.setItem(watchlistKey,JSON.stringify(list)); renderWatchlist(); } },
+    remove(id){ const list=this.all().filter(x=>x.id!==id); localStorage.setItem(watchlistKey,JSON.stringify(list)); renderWatchlist(); render(); },
+    clear(){ localStorage.setItem(watchlistKey,'[]'); renderWatchlist(); },
+    export(){ const blob = new Blob([localStorage.getItem(watchlistKey)||'[]'],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='watchlist.json'; a.click(); URL.revokeObjectURL(url); }
+  }
+
+  // ========================== INIT FILTERS ===========================
+  function initFilters(){
+    const genreSel = $('#genre');
+    genres.forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; genreSel.appendChild(o); });
+
+    const yearSel = $('#year');
+    years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; yearSel.appendChild(o); });
+
+    const chips = $('#chips');
+    ["Aksi","Drama","Komedi","Horor","Animasi","Fiksi Ilmiah","Petualangan","Musikal","Kriminal","Romansa","Keluarga","Thriller"].forEach(c=>{
+      const b=document.createElement('button'); b.className='chip'; b.textContent=c; b.onclick=()=>{ state.chip = state.chip===c? "" : c; $$('.chip').forEach(x=>x.classList.toggle('active',x.textContent===state.chip)); render(); window.location.hash='#katalog'; };
+      chips.appendChild(b);
+    });
+  }
+
+  // ========================== RENDER GRID ===========================
+  function filterMovies(){
+    return MOVIES.filter(m=>{
+      const q = state.q ? m.title.toLowerCase().includes(state.q.toLowerCase()) : true;
+      const g = state.genre ? m.genres.includes(state.genre) : true;
+      const y = state.year ? m.year == state.year : true;
+      const r = state.rating ? m.rating >= Number(state.rating) : true;
+      const c = state.chip ? m.genres.includes(state.chip) : true;
+      return q && g && y && r && c;
+    });
+  }
+
+  function card(movie){
+    const el = document.createElement('article');
+    el.className='card';
+    el.innerHTML = `
+      <span class="badge">${movie.year}</span>
+      <img class="thumb" src="${movie.poster}" alt="Poster ${movie.title}" loading="lazy"/>
+      <div class="card-body">
+        <div class="title" title="${movie.title}">${movie.title}</div>
+        <div class="meta">
+          <span>${movie.genres.slice(0,2).join(' • ')}</span>
+          <span class="rating" title="Rating IMDb/TMDB">⭐ ${movie.rating}</span>
+        </div>
+        <div class="actions">
+          <button class="small" data-trailer="${movie.trailer}" data-title="${movie.title}">Trailer</button>
+          <button class="small" data-add="${movie.id}">${watch.has(movie.id)?'✔ Tersimpan':'＋ Watchlist'}</button>
+        </div>
+      </div>`;
+    return el;
+  }
+
+  function render(){
+    const list = filterMovies();
+    const grid = $('#grid');
+    grid.innerHTML = '';
+    $('#count').textContent = `${list.length} film ditemukan`;
+    list.forEach(m=> grid.appendChild(card(m)) );
+
+    // Attach actions
+    $$('button[data-trailer]').forEach(b=> b.onclick = ()=> openTrailer(b.dataset.trailer,b.dataset.title));
+    $$('button[data-add]').forEach(b=> b.onclick = ()=>{ const id=Number(b.dataset.add); const mv=MOVIES.find(x=>x.id===id); watch.add(mv); b.textContent='✔ Tersimpan'; });
+  }
+
+  // ========================== WATCHLIST UI ===========================
+  const drawer = $('#watchlistDrawer');
+  function renderWatchlist(){
+    const root = $('#watchlistContent');
+    const items = watch.all();
+    root.innerHTML = '';
+    if(!items.length){ root.innerHTML = '<p style="color:var(--muted)">Watchlist kosong. Tambahkan film dari katalog.</p>'; return; }
+    items.forEach(m=>{
+      const row=document.createElement('div');
+      row.className='card';
+      row.innerHTML=`
+        <div style="display:flex;gap:12px;align-items:center;padding:10px">
+          <img src="${m.poster}" alt="${m.title}" style="width:64px;height:96px;object-fit:cover;border-radius:8px;border:1px solid #223047"/>
+          <div style="flex:1">
+            <div style="font-weight:600">${m.title}</div>
+            <div style="color:var(--muted);font-size:12px">${m.year} • ${m.genres.join(' / ')} • ⭐ ${m.rating}</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="small" data-trailer="${m.trailer}" data-title="${m.title}">Trailer</button>
+              <button class="small" data-remove="${m.id}">Hapus</button>
+            </div>
+          </div>
+        </div>`;
+      root.appendChild(row);
+    });
+    $$('button[data-trailer]',root).forEach(b=> b.onclick = ()=> openTrailer(b.dataset.trailer,b.dataset.title));
+    $$('button[data-remove]',root).forEach(b=> b.onclick = ()=> watch.remove(Number(b.dataset.remove)));
+  }
+
+  // ========================== TRAILER MODAL ===========================
+  const modal = $('#trailerModal');
+  const yt = $('#ytFrame');
+  function openTrailer(code,title){
+    $('#trailerTitle').textContent = `Trailer — ${title}`;
+    yt.src = `https://www.youtube.com/embed/${code}?autoplay=1`;
+    modal.classList.add('open');
+  }
+  function closeTrailer(){ yt.src=''; modal.classList.remove('open'); }
+
+  // ========================== EVENTS ===========================
+  function initEvents(){
+    $('#q').addEventListener('input', e=>{ state.q=e.target.value; render(); });
+    $('#genre').addEventListener('change', e=>{ state.genre=e.target.value; render(); });
+    $('#year').addEventListener('change', e=>{ state.year=e.target.value; render(); });
+    $('#rating').addEventListener('change', e=>{ state.rating=e.target.value; render(); });
+
+    $('#btnWatchlist').onclick = ()=> drawer.classList.add('open');
+    $('#btnCloseDrawer').onclick = ()=> drawer.classList.remove('open');
+    $('#btnClear').onclick = ()=> { if(confirm('Hapus semua item dari watchlist?')) watch.clear(); };
+    $('#btnExport').onclick = ()=> watch.export();
+
+    $('#btnCloseModal').onclick = closeTrailer;
+    modal.addEventListener('click', e=>{ if(e.target===modal) closeTrailer(); });
+
+    $('#btnRandom').onclick = ()=>{
+      const m = MOVIES[Math.floor(Math.random()*MOVIES.length)];
+      openTrailer(m.trailer, m.title);
+    };
+
+    // Keyboard a11y
+    window.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ closeTrailer(); drawer.classList.remove('open'); }
+    });
+  }
+
+  // ========================== HERO BIND ===========================
+  function bindHero(){
+    const top = MOVIES[0];
+    $('#heroPoster').src = top.poster;
+  }
+
+  // ========================== BOOT ===========================
+  initFilters();
+  initEvents();
+  bindHero();
+  renderWatchlist();
+  render();
+  $('#yearNow').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
